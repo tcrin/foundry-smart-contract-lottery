@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-    error Raffle_NotEnoughEthSent();
+error Raffle_NotEnoughEthSent();
 /**
  * @title Raffle Contract (Xổ số)
  * @author Rin
  * @notice Contract này được thiết kế để tạo một hệ thống xổ số
  * @dev Implements Chainlink VRFv2 và Chainlink Automation
  */
-contract Raffe {
+
+contract Raffle {
     /**
      * @notice Phí vào cửa để tham gia xổ số
      * @dev Biến immutable được gán giá trị trong hàm khởi tạo
@@ -16,7 +17,7 @@ contract Raffe {
     uint256 private immutable i_entranceFee;
 
     /**
-     * 
+     *
      * @param entranceFee Phí vào cửa được chỉ định khi deploy contract
      */
     constructor(uint256 entranceFee) {
@@ -29,7 +30,7 @@ contract Raffe {
      */
     function enterRaffle() external payable {
         // require(msg.value >= i_entranceFee, "Not enough ETH sent!");
-        if(msg.value < i_entranceFee) revert Raffle__NotEnoughEthSent();
+        if (msg.value < i_entranceFee) revert Raffle_NotEnoughEthSent();
     }
 
     /**
@@ -37,9 +38,12 @@ contract Raffe {
      */
     function pickWinner() public {}
 
-    /** Getter Function */
     /**
-    * @notice Hàm lấy giá trị phí vào cửa
+     * Getter Function
+     */
+
+    /**
+     * @notice Hàm lấy giá trị phí vào cửa
      * @return Giá trị của phí vào cửa
      */
     function getEntranceFee() external view returns (uint256) {
