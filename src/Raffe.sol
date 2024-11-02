@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
+    error Raffle_NotEnoughEthSent();
 /**
  * @title Raffle Contract (Xổ số)
  * @author Rin
@@ -26,7 +27,10 @@ contract Raffe {
      * @notice Hàm cho phép người dùng tham gia xổ số
      * @dev Hàm phải là `payable` để nhận ETH từ người dùng
      */
-    function enterRaffle() public payable {}
+    function enterRaffle() external payable {
+        // require(msg.value >= i_entranceFee, "Not enough ETH sent!");
+        if(msg.value < i_entranceFee) revert Raffle__NotEnoughEthSent();
+    }
 
     /**
      * @notice Hàm chọn người thắng cuộc từ danh sách người tham gia
