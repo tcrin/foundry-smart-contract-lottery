@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-// Lỗi cho trường hợp người tham gia gửi không đủ ETH
-error Raffle_NotEnoughEthSent();
-
 /**
  * @title Raffle Contract (Xổ số)
  * @author Rin
@@ -11,14 +8,27 @@ error Raffle_NotEnoughEthSent();
  * @dev Implements Chainlink VRFv2 và Chainlink Automation để cung cấp tính năng ngẫu nhiên và tự động hóa
  */
 contract Raffle {
+    // Lỗi cho trường hợp người tham gia gửi không đủ ETH
+    error Raffle_NotEnoughEthSent();
+
     /**
      * @notice Phí vào cửa để tham gia xổ số
-     * @dev Biến immutable được gán giá trị trong hàm khởi tạo
+     * @dev Biến immutable được gán giá trị trong hàm khởi tạo và không thể thay đổi sau đó.
      */
     uint256 private immutable i_entranceFee;
 
+    /**
+     * @dev Thời gian kéo dài của mỗi lần xổ số, tính theo giây.
+     */
+    uint256 private immutable i_interval;
+
     // Mảng lưu trữ danh sách người chơi tham gia xổ số
     address payable[] private s_players;
+
+    /**
+     * @dev Thời điểm khi lần xổ số bắt đầu, được lưu lại khi khởi tạo.
+     */
+    uint256 private s_lastTimeStamp;
 
     /**
      * @notice Sự kiện được phát ra khi một người chơi mới tham gia xổ số
@@ -29,9 +39,12 @@ contract Raffle {
     /**
      * @notice Hàm khởi tạo hợp đồng với phí vào cửa được xác định khi triển khai
      * @param entranceFee Phí vào cửa để tham gia xổ số, được chỉ định khi deploy contract
+     * @param interval Thời gian kéo dài của mỗi lần xổ số, tính theo giây.
      */
-    constructor(uint256 entranceFee) {
+    constructor(uint256 entranceFee, uint256 interval) {
         i_entranceFee = entranceFee;
+        i_interval = interval;
+        s_lastTimeStamp = block.timestamp;
     }
 
     /**
@@ -48,9 +61,16 @@ contract Raffle {
     }
 
     /**
-     * @notice Hàm chọn người thắng cuộc từ danh sách người tham gia
+     * @notice Hàm chọn người thắng cuộc từ danh sách người tham gia.
+     * @dev Kiểm tra nếu thời gian đã đủ lâu từ khi bắt đầu lần xổ số hiện tại trước khi chọn người thắng.
      */
-    function pickWinner() public {}
+    // 1. Get a random number
+    // 2. Use the random number to pick a player
+    // 3. Automatically called
+    function pickWinner() external {
+        // check to see if enough time has passed
+        if (block.timestamp - s_lastTimeStamp < i_interval) revert();
+    }
 
     /**
      * Getter Function
