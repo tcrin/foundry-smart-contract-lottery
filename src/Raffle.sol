@@ -22,7 +22,11 @@ contract Raffle {
      */
     uint256 private immutable i_interval;
 
-    // Mảng lưu trữ danh sách người chơi tham gia xổ số
+    /**
+     * @notice Mảng lưu trữ các địa chỉ của người chơi tham gia xổ số
+     * @dev Được khai báo là `address payable` để có thể gửi tiền thưởng cho người chiến thắng.
+     * `payable` cho phép contract gửi ETH cho người thắng cuộc, đảm bảo rằng contract có thể thanh toán cho các địa chỉ trong danh sách này.
+     */
     address payable[] private s_players;
 
     /**
