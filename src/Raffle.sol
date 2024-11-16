@@ -1,13 +1,16 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
+import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
+import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
+
 /**
  * @title Raffle Contract (Xổ số)
  * @author Rin
  * @notice Contract này được thiết kế để tạo một hệ thống xổ số phi tập trung
  * @dev Implements Chainlink VRFv2 và Chainlink Automation để cung cấp tính năng ngẫu nhiên và tự động hóa
  */
-contract Raffle {
+contract Raffle is VRFConsumerBaseV2Plus {
     // Lỗi cho trường hợp người tham gia gửi không đủ ETH
     error Raffle_NotEnoughEthSent();
 
@@ -34,6 +37,13 @@ contract Raffle {
      */
     uint256 private s_lastTimeStamp;
 
+    // Chainlink VRF related variables
+    bytes32 private immutable i_gasLane; //keyHash
+    uint64 private immutable i_subscriptionId;
+    uint16 private constant REQUEST_CONFIRMATIONS = 3;
+    uint32 private immutable i_callbackGasLimit;
+    uint32 private constant NUM_WORDS = 1;
+
     /**
      * @notice Sự kiện được phát ra khi một người chơi mới tham gia xổ số
      * @param player Địa chỉ của người chơi vừa tham gia
@@ -45,10 +55,21 @@ contract Raffle {
      * @param entranceFee Phí vào cửa để tham gia xổ số, được chỉ định khi deploy contract
      * @param interval Thời gian kéo dài của mỗi lần xổ số, tính theo giây.
      */
-    constructor(uint256 entranceFee, uint256 interval) {
+    constructor(
+        uint256 entranceFee,
+        uint256 interval,
+        address vrfCoordinator,
+        bytes32 keyHash,
+        uint64 subscriptionId,
+        uint32 callbackGasLimit
+    ) VRFConsumerBaseV2Plus(vrfCoordinator) {
         i_entranceFee = entranceFee;
         i_interval = interval;
         s_lastTimeStamp = block.timestamp;
+
+        i_gasLane = keyHash;
+        i_subscriptionId = subscriptionId;
+        i_callbackGasLimit = callbackGasLimit;
     }
 
     /**
@@ -74,6 +95,16 @@ contract Raffle {
     function pickWinner() external {
         // check to see if enough time has passed
         if (block.timestamp - s_lastTimeStamp < i_interval) revert();
+
+        VRFV2PlusClient.RandomWordsRequest memory request = VRFV2PlusClient.RandomWordsRequest({
+            keyHash: i_gasLane,
+            subId: i_subscriptionId,
+            requestConfirmations: REQUEST_CONFIRMATIONS,
+            callbackGasLimit: i_callbackGasLimit,
+            numWords: NUM_WORDS,
+            extraArgs: VRFV2PlusClient._argsToBytes(VRFV2PlusClient.ExtraArgsV1({nativePayment: false}))
+        });
+        uint256 requestId = s_vrfCoordinator.requestRandomWords(request);
     }
 
     /**
@@ -87,4 +118,6 @@ contract Raffle {
     function getEntranceFee() external view returns (uint256) {
         return i_entranceFee;
     }
+
+    function fulfillRandomWords(uint256 requestId, uint256[] calldata randomWords) internal virtual override {}
 }
