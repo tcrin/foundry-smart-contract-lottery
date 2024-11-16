@@ -13,6 +13,7 @@ import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/V
 contract Raffle is VRFConsumerBaseV2Plus {
     // Lỗi cho trường hợp người tham gia gửi không đủ ETH
     error Raffle_NotEnoughEthSent();
+    error Raffle__TransferFailed();
 
     /**
      * @notice Phí vào cửa để tham gia xổ số
@@ -43,6 +44,7 @@ contract Raffle is VRFConsumerBaseV2Plus {
     uint16 private constant REQUEST_CONFIRMATIONS = 3;
     uint32 private immutable i_callbackGasLimit;
     uint32 private constant NUM_WORDS = 1;
+    address private s_recentWinner;
 
     /**
      * @notice Sự kiện được phát ra khi một người chơi mới tham gia xổ số
@@ -119,5 +121,20 @@ contract Raffle is VRFConsumerBaseV2Plus {
         return i_entranceFee;
     }
 
-    function fulfillRandomWords(uint256 requestId, uint256[] calldata randomWords) internal virtual override {}
+    /**
+     * @notice Hàm xử lý kết quả ngẫu nhiên từ Chainlink VRF
+     * @param requestId ID của yêu cầu ngẫu nhiên
+     * @param randomWords Mảng chứa số ngẫu nhiên từ Chainlink VRF
+     * @dev Chọn người thắng cuộc từ danh sách người chơi và gửi toàn bộ phần thưởng.
+     * @custom:error Raffle__TransferFailed Khi việc chuyển ETH đến người thắng thất bại.
+     */
+    function fulfillRandomWords(uint256 requestId, uint256[] calldata randomWords) internal virtual override {
+        uint256 indexOfWinner = randomWords[0] % s_players.length;
+        address payable recentWinner = s_players[indexOfWinner];
+        s_recentWinner = recentWinner;
+        (bool success,) = recentWinner.call{value: address(this).balance}("");
+        if (!success) {
+            revert Raffle__TransferFailed();
+        }
+    }
 }
