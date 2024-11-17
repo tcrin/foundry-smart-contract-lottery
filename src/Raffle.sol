@@ -95,6 +95,11 @@ contract Raffle is VRFConsumerBaseV2Plus {
      * @param player Địa chỉ của người chơi vừa tham gia
      */
     event EnteredRaffle(address indexed player);
+    /**
+     * @notice Sự kiện được phát ra khi một người thắng cuộc được chọn
+     * @param winner Địa chỉ của người thắng cuộc
+     */
+    event PickedWinner(address winner);
 
     /**
      * @notice Hàm khởi tạo hợp đồng với phí vào cửa được xác định khi triển khai
@@ -193,9 +198,14 @@ contract Raffle is VRFConsumerBaseV2Plus {
         s_recentWinner = recentWinner;
         s_raffleState = RaffleState.OPEN;
 
+        //Reset player
+        s_players = new address payable[](0);
+        s_lastTimeStamp = block.timestamp;
+
         (bool success,) = recentWinner.call{value: address(this).balance}("");
         if (!success) {
             revert Raffle__TransferFailed();
         }
+        emit PickedWinner(s_recentWinner);
     }
 }
