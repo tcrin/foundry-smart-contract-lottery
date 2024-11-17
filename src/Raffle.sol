@@ -1,3 +1,26 @@
+// Layout of the contract file:
+// version
+// imports
+// errors
+// interfaces, libraries, contract
+
+// Inside Contract:
+// Type declarations
+// State variables
+// Events
+// Modifiers
+// Functions
+
+// Layout of Functions:
+// constructor
+// receive function (if exists)
+// fallback function (if exists)
+// external
+// public
+// internal
+// private
+// view & pure functions
+
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
@@ -11,10 +34,27 @@ import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/V
  * @dev Implements Chainlink VRFv2 và Chainlink Automation để cung cấp tính năng ngẫu nhiên và tự động hóa
  */
 contract Raffle is VRFConsumerBaseV2Plus {
+    /* Error */
     // Lỗi cho trường hợp người tham gia gửi không đủ ETH
     error Raffle_NotEnoughEthSent();
     error Raffle__TransferFailed();
+    /**
+     * @notice Lỗi khi người dùng cố gắng tham gia khi xổ số không ở trạng thái mở
+     */
+    error Raffle__RaffleNotOpen();
 
+    /* Type declarations */
+    /**
+     * @notice Trạng thái hiện tại của xổ số
+     * @dev `OPEN` nghĩa là đang chấp nhận người chơi, `CALCULATING` nghĩa là đang chọn người thắng.
+     */
+    enum RaffleState {
+        OPEN, // 0
+        CALCULATING // 1
+
+    }
+
+    /* State variables */
     /**
      * @notice Phí vào cửa để tham gia xổ số
      * @dev Biến immutable được gán giá trị trong hàm khởi tạo và không thể thay đổi sau đó.
@@ -46,6 +86,10 @@ contract Raffle is VRFConsumerBaseV2Plus {
     uint32 private constant NUM_WORDS = 1;
     address private s_recentWinner;
 
+    //
+    RaffleState private s_raffleState;
+
+    /* Event */
     /**
      * @notice Sự kiện được phát ra khi một người chơi mới tham gia xổ số
      * @param player Địa chỉ của người chơi vừa tham gia
@@ -56,6 +100,11 @@ contract Raffle is VRFConsumerBaseV2Plus {
      * @notice Hàm khởi tạo hợp đồng với phí vào cửa được xác định khi triển khai
      * @param entranceFee Phí vào cửa để tham gia xổ số, được chỉ định khi deploy contract
      * @param interval Thời gian kéo dài của mỗi lần xổ số, tính theo giây.
+     * @param vrfCoordinator Địa chỉ của Chainlink VRF Coordinator
+     * @param keyHash Giá trị hash của khóa dùng cho Chainlink VRF
+     * @param subscriptionId ID đăng ký cho Chainlink VRF
+     * @param callbackGasLimit Giới hạn gas callback của Chainlink VRF
+     * @dev Khởi tạo các biến trạng thái và đặt trạng thái xổ số ban đầu là `OPEN`.
      */
     constructor(
         uint256 entranceFee,
@@ -72,17 +121,22 @@ contract Raffle is VRFConsumerBaseV2Plus {
         i_gasLane = keyHash;
         i_subscriptionId = subscriptionId;
         i_callbackGasLimit = callbackGasLimit;
+
+        s_raffleState = RaffleState.OPEN; // Xổ số bắt đầu ở trạng thái mở
     }
 
     /**
      * @notice Hàm cho phép người dùng tham gia xổ số bằng cách gửi ETH
      * @dev Hàm phải có từ khóa `payable` để có thể nhận ETH từ người dùng
      * @custom:error Raffle_NotEnoughEthSent() Khi số ETH gửi vào nhỏ hơn phí vào cửa
+     * @custom:error Raffle__RaffleNotOpen Nếu xổ số không ở trạng thái `OPEN`
      */
     function enterRaffle() external payable {
         // Kiểm tra số ETH người dùng gửi có đủ không
         // require(msg.value >= i_entranceFee, "Not enough ETH sent!");
         if (msg.value < i_entranceFee) revert Raffle_NotEnoughEthSent();
+        if (s_raffleState != RaffleState.OPEN) revert Raffle__RaffleNotOpen(); // If not open you don't enter.
+
         s_players.push(payable(msg.sender));
         emit EnteredRaffle(msg.sender);
     }
@@ -90,6 +144,8 @@ contract Raffle is VRFConsumerBaseV2Plus {
     /**
      * @notice Hàm chọn người thắng cuộc từ danh sách người tham gia.
      * @dev Kiểm tra nếu thời gian đã đủ lâu từ khi bắt đầu lần xổ số hiện tại trước khi chọn người thắng.
+     *      Chuyển trạng thái xổ số sang `CALCULATING` và yêu cầu số ngẫu nhiên từ Chainlink VRF.
+     * @custom:error Nếu thời gian chưa đủ dài từ lần xổ số trước đó.
      */
     // 1. Get a random number
     // 2. Use the random number to pick a player
@@ -97,6 +153,8 @@ contract Raffle is VRFConsumerBaseV2Plus {
     function pickWinner() external {
         // check to see if enough time has passed
         if (block.timestamp - s_lastTimeStamp < i_interval) revert();
+
+        s_raffleState = RaffleState.CALCULATING;
 
         VRFV2PlusClient.RandomWordsRequest memory request = VRFV2PlusClient.RandomWordsRequest({
             keyHash: i_gasLane,
@@ -126,12 +184,15 @@ contract Raffle is VRFConsumerBaseV2Plus {
      * @param requestId ID của yêu cầu ngẫu nhiên
      * @param randomWords Mảng chứa số ngẫu nhiên từ Chainlink VRF
      * @dev Chọn người thắng cuộc từ danh sách người chơi và gửi toàn bộ phần thưởng.
+     *      Sau khi hoàn tất, trạng thái xổ số được đặt lại thành `OPEN`.
      * @custom:error Raffle__TransferFailed Khi việc chuyển ETH đến người thắng thất bại.
      */
     function fulfillRandomWords(uint256 requestId, uint256[] calldata randomWords) internal virtual override {
         uint256 indexOfWinner = randomWords[0] % s_players.length;
         address payable recentWinner = s_players[indexOfWinner];
         s_recentWinner = recentWinner;
+        s_raffleState = RaffleState.OPEN;
+
         (bool success,) = recentWinner.call{value: address(this).balance}("");
         if (!success) {
             revert Raffle__TransferFailed();
