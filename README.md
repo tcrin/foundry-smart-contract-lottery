@@ -85,3 +85,8 @@ function coolFunction() public {
 ---
 
 Áp dụng CEI giúp contract của bạn an toàn hơn và tiết kiệm gas hơn.
+
+## Đặt tên error (để dễ trace bug)
+<Contract name>__<error name>
+
+## .t.sol và .s.sol không tự import được (IntelliJ)

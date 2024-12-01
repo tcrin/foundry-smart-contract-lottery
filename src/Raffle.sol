@@ -81,7 +81,7 @@ contract Raffle is VRFConsumerBaseV2Plus {
 
     // Chainlink VRF related variables
     bytes32 private immutable i_gasLane; //keyHash
-    uint64 private immutable i_subscriptionId;
+    uint256 private immutable i_subscriptionId;
     uint16 private constant REQUEST_CONFIRMATIONS = 3;
     uint32 private immutable i_callbackGasLimit;
     uint32 private constant NUM_WORDS = 1;
@@ -117,7 +117,7 @@ contract Raffle is VRFConsumerBaseV2Plus {
         uint256 interval,
         address vrfCoordinator,
         bytes32 keyHash,
-        uint64 subscriptionId,
+        uint256 subscriptionId,
         uint32 callbackGasLimit
     ) VRFConsumerBaseV2Plus(vrfCoordinator) {
         i_entranceFee = entranceFee;
